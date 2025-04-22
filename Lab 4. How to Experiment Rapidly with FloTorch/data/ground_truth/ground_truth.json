@@ -12,20 +12,20 @@
     "answer": "BERT is used to improve accuracy across all three sub-tasks by serving as a shared encoder in the multi-task learning framework."
   },
   {
-    "question": "What was Amazon's free cash flow for the year ended December 31, 2023, and how does it compare to 2022?",
-    "answer": "For the year ended December 31, 2023, Amazon reported a free cash flow of $36,813 million, compared to a negative free cash flow of $(11,569) million in 2022. This represents a significant improvement of $48,382 million year-over-year."
+    "question": "In CONSOLIDATED STATEMENTS OF CASH FLOWS, How much did net income change in years 2022, 2023, 2024? Show me how you did the math.",
+    "answer": "For the year ended December 31, 2022, Amazon's net income decreased by $36,086 million compared to 2021. Subsequently, for the year ended December 31, 2023, net income increased by $33,147 million compared to 2022. This positive trend continued into the year ended December 31, 2024, with a further increase in net income of $28,823 million compared to 2023."
   },
   {
-    "question": "How much did Amazon's net cash provided by operating activities change from 2022 to 2023?",
-    "answer": "Amazon's net cash provided by operating activities increased from $46,752 million in 2022 to $84,946 million in 2023, representing an increase of $38,194 million or approximately 82% year-over-year24."
+    "question": "In CONSOLIDATED STATEMENTS OF OPERATIONS, How much did net product sales change in years 2021, 2022, 2023?",
+    "answer": "Based on the retrieved results, the net product sales in 2021 was $241,787 million, in 2022 was $242,901 million, and in 2023 was $255,887 million. The net product sales increased by $1,114 million in 2022 and by $12,986 million in 2023 compared to the previous year."
+  },
+  {
+    "question": "How does the long-term debt look in the CONSOLIDATED BALANCE SHEETS for years 2022 and 2023?",
+    "answer": "For the year ended December 31, 2023, Amazon's total current liabilities amounted to $164,917 million, compared to $155,393 million in 2022. This represents an increase of $9,524 million in total current liabilities year-over-year."
   },
   {
     "question": "What were Amazon's total net sales in 2023 across its three business segments, and how did they change from 2022?",
     "answer": "Amazon's total net sales for 2023 were $574,785 million, an increase of 12% from $513,983 million in 2022. By segment: North America: $352,828 million in 2023, up 12% from $315,880 million in 2022 International: $131,200 million in 2023, up 11% from $118,007 million in 2022 AWS: $90,757 million in 2023, up 13% from $80,096 million in 2022"
-  },
-  {
-    "question": "How much cash and cash equivalents did Amazon have at the end of 2022?",
-    "answer": "At the end of 2022, Amazon had $53,888 million in cash and cash equivalents."
   },
   {
     "question": "How much did Amazon's net sales increase from 2021 to 2022?",
