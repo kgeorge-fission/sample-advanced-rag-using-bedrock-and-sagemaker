@@ -36,6 +36,16 @@ This workshop is organized into three main lab sections:
 - **3.1 Prerequisites - Set up Database & Crawler**: Configure Amazon Athena and AWS Glue
 - **3.2 Text to SQL**: Implement natural language to SQL query capability
 
+### Lab 4: How to Experiment Rapidly with FloTorch
+
+- **4.1 Prerequisites for FloTorch**: Configurations for the FloTorch experiments
+- **4.2 Retrieval and Generation - Fixed vs Semantic KB**: Comparing Chunking Methods in RAG Knowledge Bases
+- **4.3 Ragas Evaluation - Fixed vs Semantic KB**: Measuring RAG Quality with FloTorch Metrics
+- **4.4 Custom Evaluation - Fixed vs Semantic KB**: Custom Evaluation of RAG Knowledge Bases
+- **4.5 Retrieval and Generation - Multiple Models**: Evaluating Different Models for RAG Generation
+- **4.6 Ragas Evaluation - Multiple Models**: FloTorch RAG Evaluation: Multi-Model Comparison
+- **4.7 Custom Evaluation - Multiple Models**: Custom Evaluation Framework for Multiple Models
+
 ## Prerequisites
 
 Before starting the labs, ensure you have:
