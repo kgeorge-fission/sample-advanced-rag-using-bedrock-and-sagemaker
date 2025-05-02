@@ -28,6 +28,7 @@ This script is designed for use in an AWS environment with proper permissions.
 import boto3
 import json
 from sagemaker import get_execution_role
+import time 
 
 # Initialize AWS clients
 s3 = boto3.client("s3")
@@ -97,6 +98,61 @@ class AdvancedRagIamRoles:
             ]
         }
 
+        # Define CloudWatch full access policy
+        cloudwatch_policy_document = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["cloudwatch:*"],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogStreams",
+                        "logs:GetLogEvents"
+                    ],
+                    "Resource": [
+                        f"arn:aws:logs:{self.region_name}:{self.account_number}:log-group:*"
+                    ]
+                }
+            ]
+        }
+        
+        # Define Bedrock logging configuration policy
+        bedrock_logging_policy_document = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "bedrock:PutModelInvocationLoggingConfiguration",
+                        "bedrock:GetModelInvocationLoggingConfiguration",
+                        "bedrock:DeleteModelInvocationLoggingConfiguration"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "iam:PassRole"
+                    ],
+                    "Resource": [
+                        f"arn:aws:iam::{self.account_number}:role/*"
+                    ],
+                    "Condition": {
+                        "StringEquals": {
+                            "iam:PassedToService": "bedrock.amazonaws.com"
+                        }
+                    }
+                }
+            ]
+        }
+
         # Define trust policy for Bedrock execution role
         assume_role_policy_document = {
             "Version": "2012-10-17",
@@ -127,6 +183,18 @@ class AdvancedRagIamRoles:
             PolicyDocument=json.dumps(lambda_policy_document),
             Description="Policy for invoking Lambda functions"
         )
+        
+        cloudwatch_policy = iam.create_policy(
+            PolicyName=f"advanced-rag-cloudwatch-policy-{self.region_name}",
+            PolicyDocument=json.dumps(cloudwatch_policy_document),
+            Description="Policy for CloudWatch full access"
+        )
+
+        bedrock_logging_policy = iam.create_policy(
+            PolicyName=f"advanced-rag-bedrock-logging-policy-{self.region_name}",
+            PolicyDocument=json.dumps(bedrock_logging_policy_document),
+            Description="Policy for Bedrock model invocation logging configuration"
+        )
 
         # Create Bedrock execution role
         bedrock_kb_execution_role = iam.create_role(
@@ -140,7 +208,15 @@ class AdvancedRagIamRoles:
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=fm_policy["Policy"]["Arn"])
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=s3_policy["Policy"]["Arn"])
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=lambda_policy["Policy"]["Arn"])
+        iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=cloudwatch_policy["Policy"]["Arn"])
+        iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=bedrock_logging_policy["Policy"]["Arn"])
 
+        print(f"CloudWatch full access policy attached to {bedrock_kb_execution_role['Role']['RoleName']}")
+        print(f"Bedrock logging policy attached to {bedrock_kb_execution_role['Role']['RoleName']}")
+
+        print("Waiting for IAM changes to propagate...")
+        time.sleep(10)
+        
         return bedrock_kb_execution_role
 
     # Function to add OpenSearch Vector Collection access to Bedrock Execution Role
@@ -165,10 +241,11 @@ class AdvancedRagIamRoles:
             PolicyDocument=json.dumps(oss_policy_document),
             Description="Policy for accessing OpenSearch Serverless",
         )
-
+        print(oss_policy)
+        print("creted oss policy successfully, proceeding to attach policy") 
         # Attach the policy to the Bedrock execution role
         iam.attach_role_policy(
-            RoleName=bedrock_kb_execution_role["Role"]["RoleName"],
+            RoleName=bedrock_kb_execution_role,
             PolicyArn=oss_policy["Policy"]["Arn"]
         )
 

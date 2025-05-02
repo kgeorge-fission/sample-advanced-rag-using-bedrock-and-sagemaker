@@ -10,6 +10,7 @@ Key functionalities:
      - Invoke Bedrock foundation models
      - Access S3 for data storage and retrieval
      - Invoke a custom chunking Lambda function
+     - Full access to CloudWatch metrics and logs
 
 2. **IAM Policy Management**:
    - Defines and attaches policies for:
@@ -17,6 +18,7 @@ Key functionalities:
      - S3 storage (`s3:GetObject`, `s3:PutObject`, etc.)
      - Lambda invocation (`lambda:InvokeFunction`)
      - OpenSearch Serverless API access (`aoss:APIAccessAll`)
+     - CloudWatch full access (`cloudwatch:*`)
 
 3. **OpenSearch Serverless Policies**:
    - Creates security, network, and data access policies for OpenSearch Serverless.
@@ -46,7 +48,7 @@ class AdvancedRagIamRoles:
 
     # Function to create Amazon Bedrock Execution Role
     def create_bedrock_execution_role(self, bucket_name):
-        """Creates an Amazon Bedrock execution role with permissions for Bedrock, S3, and Lambda."""
+        """Creates an Amazon Bedrock execution role with permissions for Bedrock, S3, Lambda, and CloudWatch."""
 
         # Define Bedrock foundation model policy
         foundation_model_policy_document = {
@@ -121,36 +123,6 @@ class AdvancedRagIamRoles:
                 }
             ]
         }
-        
-        # Define Bedrock logging configuration policy
-        bedrock_logging_policy_document = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "bedrock:PutModelInvocationLoggingConfiguration",
-                        "bedrock:GetModelInvocationLoggingConfiguration",
-                        "bedrock:DeleteModelInvocationLoggingConfiguration"
-                    ],
-                    "Resource": "*"
-                },
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "iam:PassRole"
-                    ],
-                    "Resource": [
-                        f"arn:aws:iam::{self.account_number}:role/*"
-                    ],
-                    "Condition": {
-                        "StringEquals": {
-                            "iam:PassedToService": "bedrock.amazonaws.com"
-                        }
-                    }
-                }
-            ]
-        }
 
         # Define trust policy for Bedrock execution role
         assume_role_policy_document = {
@@ -182,17 +154,11 @@ class AdvancedRagIamRoles:
             PolicyDocument=json.dumps(lambda_policy_document),
             Description="Policy for invoking Lambda functions"
         )
-        
+
         cloudwatch_policy = iam.create_policy(
             PolicyName=f"advanced-rag-cloudwatch-policy-{self.region_name}",
             PolicyDocument=json.dumps(cloudwatch_policy_document),
             Description="Policy for CloudWatch full access"
-        )
-
-        bedrock_logging_policy = iam.create_policy(
-            PolicyName=f"advanced-rag-bedrock-logging-policy-{self.region_name}",
-            PolicyDocument=json.dumps(bedrock_logging_policy_document),
-            Description="Policy for Bedrock model invocation logging configuration"
         )
 
         # Create Bedrock execution role
@@ -208,13 +174,8 @@ class AdvancedRagIamRoles:
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=s3_policy["Policy"]["Arn"])
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=lambda_policy["Policy"]["Arn"])
         iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=cloudwatch_policy["Policy"]["Arn"])
-        iam.attach_role_policy(RoleName=bedrock_kb_execution_role["Role"]["RoleName"], PolicyArn=bedrock_logging_policy["Policy"]["Arn"])
 
         print(f"CloudWatch full access policy attached to {bedrock_kb_execution_role['Role']['RoleName']}")
-        print(f"Bedrock logging policy attached to {bedrock_kb_execution_role['Role']['RoleName']}")
-
-        print("Waiting for IAM changes to propagate...")
-        time.sleep(10)
         
         return bedrock_kb_execution_role
 
@@ -248,6 +209,26 @@ class AdvancedRagIamRoles:
         )
 
         return None
+
+    # Function to attach AWS managed CloudWatch full access policy (alternative approach)
+    def attach_cloudwatch_managed_policy(self, role_name):
+        """Attaches the AWS managed CloudWatch full access policy to the specified role."""
+        
+        try:
+            # AWS managed policy ARN for CloudWatch full access
+            cloudwatch_managed_policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+            
+            # Attach the AWS managed policy to the role
+            iam.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn=cloudwatch_managed_policy_arn
+            )
+            
+            print(f"AWS managed CloudWatch full access policy attached to {role_name}")
+            return True
+        except Exception as e:
+            print(f"Error attaching CloudWatch managed policy: {str(e)}")
+            return False
 
     # Function to create OpenSearch Serverless security, network, and data access policies
     def create_policies_in_oss(self, vector_store_name, aoss_client, bedrock_kb_execution_role_arn):
@@ -321,5 +302,3 @@ class AdvancedRagIamRoles:
             return encryption_policy, network_policy, access_policy
         except Exception as e:
             print(f"Error: {str(e)}")
-
-
