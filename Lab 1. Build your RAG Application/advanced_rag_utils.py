@@ -758,7 +758,7 @@ def save_variables_to_json(variables, file_path="../variables.json"):
 ######################################################################
 
 @retry(wait_random_min=1000, wait_random_max=2000, stop_max_attempt_number=3)
-def create_knowledge_base_func(name, description, chunking_type, variables):
+def create_knowledge_base_func(name, description, chunking_type, variables, model_id):
     """
     Creates a knowledge base in Amazon Bedrock with specified configuration and OpenSearch Serverless storage.
     
@@ -787,7 +787,7 @@ def create_knowledge_base_func(name, description, chunking_type, variables):
     bedrock_agent = boto3.client("bedrock-agent", region_name=variables["regionName"])
 
     # Configure ARN for Titan embedding model v2 - used for document and query embedding
-    embedding_model_arn = f"arn:aws:bedrock:{variables['regionName']}::foundation-model/amazon.titan-embed-text-v2:0"
+    embedding_model_arn = f"arn:aws:bedrock:{variables['regionName']}::foundation-model/{model_id}"
 
     # Create unique vector index name by combining base name with chunking type
     vectorIndexName = variables["vectorIndexName"] + chunking_type
@@ -848,7 +848,7 @@ def update_kb_id(variables, kb_chunking_type_in, kb_id):
     elif kb_chunking_type == "CUSTOM":
         variables["kbCustomChunk"] = kb_id
 
-def create_kb(kb_name, kb_description, kb_chunking_type, variables):
+def create_kb(kb_name, kb_description, kb_chunking_type, variables, model_id):
     """
     Creates or retrieves a knowledge base in AWS Bedrock and updates configuration variables.
     
@@ -879,7 +879,8 @@ def create_kb(kb_name, kb_description, kb_chunking_type, variables):
             name=kb_name,
             description=kb_description,
             chunking_type=kb_chunking_type,
-            variables=variables
+            variables=variables,
+            model_id=model_id
         )
     
         # Fetch details of newly created knowledge base
@@ -1304,11 +1305,12 @@ BEDROCK_MODEL_PRICING = {
 }
 
 def get_embedding_LLM_costs_for_KB(
-    model_arn: str,
+    model_id: str,
     start_time: datetime,
     end_time: datetime,
     granularity_seconds_period: int = 10,
-    assumed_GB_text=1
+    assumed_GB_text=1,
+    region ="us-west-2"
 ):
     """
     Calculate the cost of using an embedding model for a knowledge base.
@@ -1337,7 +1339,7 @@ def get_embedding_LLM_costs_for_KB(
             Dimensions=[
                 {
                     'Name': 'ModelId',
-                    'Value': model_arn
+                    'Value': f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
                 }
             ],
             StartTime=start_time,
@@ -1349,7 +1351,7 @@ def get_embedding_LLM_costs_for_KB(
         # Sum up all datapoints
         total_tokens = sum(dp['Sum'] for dp in response['Datapoints'])
         results[metric] = int(total_tokens)
-    model_id = model_arn.split('/')[1]
+
     json_token = {
         'WARNING': (
             "These costs are approximate and directional as of April 2025. "
@@ -1397,7 +1399,7 @@ def get_embedding_LLM_costs_for_KB(
     return json_token
 
 
-def get_bedrock_tokens(model_arn: str, start_time: datetime, end_time: datetime, granularity_seconds_period: int = 5):
+def get_bedrock_token_based_cost(model_id: str, start_time: datetime, end_time: datetime, granularity_seconds_period: int = 5, region="us-west-2"):
     """
     Calculate token counts and costs for Bedrock model usage
     
@@ -1424,9 +1426,9 @@ def get_bedrock_tokens(model_arn: str, start_time: datetime, end_time: datetime,
             Dimensions=[
                 {
                     'Name': 'ModelId',
-                    'Value': model_arn
+                    'Value': f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
                 }
-            ],
+            ] if model_id else [],
             StartTime=start_time,
             EndTime=end_time,
             Period=granularity_seconds_period,
@@ -1436,7 +1438,7 @@ def get_bedrock_tokens(model_arn: str, start_time: datetime, end_time: datetime,
         # Sum up all datapoints
         total_tokens = sum(dp['Sum'] for dp in response['Datapoints'])
         results[metric] = int(total_tokens)
-    model_id = model_arn.split('/')[1]
+    
     json_token = {
         'WARNING': "These costs are approximate and directional as of April 2025. They will vary as per region and may change in future. The costs are for Bedrock On-Demand model. If you see zero costs, chances are high that the LLM was not considered in cost calculations when the notebook was prepared. Please use AWS calculator for more accurate cost calculations.",
         'model_id': model_id,
@@ -1560,6 +1562,31 @@ def update_or_add_row(df, new_row):
     except Exception as e:
         print(f"Error updating DataFrame: {str(e)}")
         return df
+
+
+def embedding_cost_report(vector_store_embedding_cost, cost_for_notebook, scenario_number_of_documents, scenario_number_of_queries, notebook_number_of_documents=7):
+    number_of_query_invocation = cost_for_notebook["invocation_count"] - vector_store_embedding_cost["invocation_count"]
+    cost_of_query_embedding = cost_for_notebook["total token costs"]-vector_store_embedding_cost["total token costs"]
+    cost_of_query_invocation = cost_for_notebook["total token costs"]-vector_store_embedding_cost["total token costs"]
+    average_cost_of_query_embedding = cost_of_query_embedding/float(number_of_query_invocation)
+    documents_multiplier = float(scenario_number_of_documents)/float(notebook_number_of_documents)
+    scenario_vector_store_cost = round(vector_store_embedding_cost["total token costs"]*documents_multiplier,6)
+    scenario_query_cost = round(average_cost_of_query_embedding*scenario_number_of_queries,6)
+    md = f"""
+#### Scenario
+* Number of documents to ingest: {scenario_number_of_documents}
+* Number of queries: {scenario_number_of_queries}
+
+#### Cost Estimation based on the Scenario (USD)
+|-| Notebook Cost | Scenario Cost |
+|-|-|-|
+|VectorStore|{round(vector_store_embedding_cost["total token costs"],6)}|{scenario_vector_store_cost}|
+|Queries|{cost_of_query_invocation}|{scenario_query_cost}|
+|**TOTAL**|{round(cost_for_notebook["total token costs"],6)}|{scenario_vector_store_cost+scenario_query_cost}|
+
+#### The cost estimation is based on a scenario that the similar documents and queries are multiplied.
+        """
+    return md
 
 
 
