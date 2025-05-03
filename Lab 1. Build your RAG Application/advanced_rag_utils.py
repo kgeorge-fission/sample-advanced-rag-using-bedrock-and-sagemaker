@@ -120,6 +120,7 @@ def create_bedrock_execution_role(role_handler, s3_bucket_name):
     role_name = f"advanced-rag-workshop-bedrock_execution_role-{role_handler.region_name}"
     bedrock_kb_execution_role_arn = ""
     
+    
     try:
         # Try to get the existing role
         existing_role = iam_client.get_role(RoleName=role_name)
@@ -1290,15 +1291,15 @@ BEDROCK_MODEL_PRICING = {
         'output_per_million': 0.0
     },
     # Amazon Nova models - added based on CSV and search data
-    'amazon.nova-micro': {
+    'us.amazon.nova-micro-v1:0': {
         'input_per_million': 0.035,  # $0.000035 per 1,000 tokens
         'output_per_million': 0.12   # $0.00012 per 1,000 tokens
     },
-    'amazon.nova-lite': {
+    'us.amazon.nova-lite-v1:0': {
         'input_per_million': 0.12,   # $0.00012 per 1,000 tokens
         'output_per_million': 0.36   # $0.00036 per 1,000 tokens
     },
-    'amazon.nova-pro': {
+    'us.amazon.nova-pro-v1:0': {
         'input_per_million': 0.8,    # $0.0008 per 1,000 tokens
         'output_per_million': 3.2    # $0.0032 per 1,000 tokens
     }
@@ -1412,6 +1413,7 @@ def get_bedrock_token_based_cost(model_id: str, start_time: datetime, end_time: 
     Returns:
         dict: Dictionary containing token counts and costs
     """
+
     cloudwatch = boto3.client('cloudwatch')
 
     namespace = 'AWS/Bedrock'
@@ -1426,9 +1428,9 @@ def get_bedrock_token_based_cost(model_id: str, start_time: datetime, end_time: 
             Dimensions=[
                 {
                     'Name': 'ModelId',
-                    'Value': f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
+                    'Value': f"arn:aws:bedrock:{region}::foundation-model/{model_id}" if "titan" in model_id else model_id
                 }
-            ] if model_id else [],
+            ],
             StartTime=start_time,
             EndTime=end_time,
             Period=granularity_seconds_period,
